@@ -1,6 +1,6 @@
 # check_monit
 
-An Icinga check plugin for Monit httpd Instances.
+An Icinga check plugin for [Monit](https://mmonit.com/) httpd Instances.
 
 ## Installation
 
@@ -8,7 +8,7 @@ Python 3 is required, and you need the Python [requests](https://pypi.org/projec
 
 Please prefer installation via system packages like `python3-requests`.
 
-Alternatively you can install with pip:
+Alternatively you can install it with pip:
 
     pip3 install -r requirements.txt
 
