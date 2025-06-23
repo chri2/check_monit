@@ -1,26 +1,34 @@
 #!/usr/bin/env python3
 
-# MIT License
-#
-# Copyright (c) 2021 NETWAYS GmbH
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+# monit.h Reference
+# typedef enum {
+#         Monitor_Not     = 0x0,
+#         Monitor_Yes     = 0x1,
+#         Monitor_Init    = 0x2,
+#         Monitor_Waiting = 0x4
+# } Monitor_State;
+
+# typedef enum {
+#         State_Succeeded  = 0x0,
+#         State_Failed     = 0x1,
+#         State_Changed    = 0x2,
+#         State_ChangedNot = 0x4,
+#         State_Init       = 0x8,
+#         State_None       = State_Init // Alias
+# } State_Type;
+
+# typedef enum {
+#         Service_Filesystem = 0,
+#         Service_Directory,
+#         Service_File,
+#         Service_Process,
+#         Service_Host,
+#         Service_System,
+#         Service_Fifo,
+#         Service_Program,
+#         Service_Net,
+#         Service_Last = Service_Net
+# } Service_Type;
 
 import sys
 import argparse
@@ -37,7 +45,6 @@ icinga_status = {
     2: 'CRITICAL',
     3: 'UNKNOWN'
 }
-
 
 def commandline(args):
 
@@ -57,7 +64,6 @@ def commandline(args):
 
 
 def print_output(status, count_ok, count_all, items):
-
     s = icinga_status[status]
 
     print(f"[{s}]: Monit Service Status {count_ok}/{count_all}")
@@ -69,16 +75,19 @@ def print_output(status, count_ok, count_all, items):
             print('  ' + item['output'])
 
 
-def service_output(service_type, element):
+def get_service_output(service_type, element):
+    # Service Type Filesystem
     if service_type == 0:
         block = float(element.findall('block/percent')[0].text)
         inode = float(element.findall('inode/percent')[0].text)
         return 'user={0}%;inodes={1}%'.format(block, inode)
 
+    # Service Type Process
     if service_type == 3:
-        # service type: PROCESS
         status = element.find('status').text
         return status
+
+    # Service Type Host
     if service_type == 5:
         output = []
 
@@ -98,42 +107,21 @@ def service_output(service_type, element):
 
         return ';'.join(output)
 
+    # Service Type Program
     if service_type == 7:
-        # status = float(element.findall('program/status')[0].text)
         return element.findall('program/output')[0].text
 
     return 'Service (type={0}) not implemented'.format(service_type)
 
-
-def main(args):
-    url = '{0}:{1}/_status?format=xml'.format(args.host, args.port)
-
-    try:
-        r = requests.get(url, auth=(args.user, args.password), timeout=5)
-    except Exception as e: # pylint: disable=broad-except
-        print('[UNKNOWN]: Monit Socket error={0}'.format(str(e)))
-        return 3
-
-    status_code = r.status_code
-
-    if status_code != 200:
-        print('[UNKNOWN]: Monit HTTP status={0}'.format(status_code))
-        return 3
-
-    try:
-        tree = ElementTree.fromstring(r.content)
-    except Exception as e: # pylint: disable=broad-except
-        print('[UNKNOWN]: Monit XML error={0}'.format(str(e)))
-        return 3
-
+def get_service_states(services):
     items = []
-    services = tree.findall('service')
-
     count_all = 0
     count_ok = 0
 
     for service in services:
+        # Get the monitor state for the service (0: Not, 1: Yes, 2: Init, 4: Waiting)
         monitor = int(service.find('monitor').text)
+        # if the monitor is yes or initialize, check its status
         if monitor in (1, 2):
             status = int(service.find('status').text)
             if status == 0:
@@ -144,20 +132,45 @@ def main(args):
             items.append({
                 "name": service.find('name').text,
                 "status": status,
-                "output": service_output(int(service.get('type')), service)
+                "output": get_service_output(int(service.get('type')), service)
             })
 
-    status = 0
+    return items, count_all, count_ok
 
+def main(args):
+    url = '{0}:{1}/_status?format=xml'.format(args.host, args.port)
+
+    try:
+        r = requests.get(url, auth=(args.user, args.password), timeout=5)
+    except Exception as e: # pylint: disable=broad-except
+        print('[UNKNOWN]: Could not connect to Monit. error={0}'.format(str(e)))
+        return 3
+
+    status_code = r.status_code
+
+    if status_code != 200:
+        print('[UNKNOWN]: No valid response from Monit HTTP Server. error={0}'.format(status_code))
+        return 3
+
+    try:
+        tree = ElementTree.fromstring(r.content)
+    except Exception as e: # pylint: disable=broad-except
+        print('[UNKNOWN]: Unable to parse XML response from Monit HTTP Server. error={0}'.format(str(e)))
+        return 3
+
+    services = tree.findall('service')
+    items, count_all, count_ok = get_service_states(services)
+
+    exit_status = 0
     if count_ok < count_all:
-        status = 2
+        exit_status = 2
 
     if count_ok == 0:
-        status = 2
+        exit_status = 2
 
-    print_output(status, count_ok, count_all, items)
+    print_output(exit_status, count_ok, count_all, items)
 
-    return status
+    return exit_status
 
 
 if __package__ == '__main__' or __package__ is None: # pragma: no cover

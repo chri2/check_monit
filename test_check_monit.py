@@ -2,6 +2,7 @@
 
 import unittest
 import unittest.mock as mock
+import xml.etree.ElementTree as ET
 import sys
 
 sys.path.append('..')
@@ -10,6 +11,7 @@ sys.path.append('..')
 from check_monit import main
 from check_monit import commandline
 from check_monit import print_output
+from check_monit import get_service_output
 
 
 class MockRequest():
@@ -28,6 +30,19 @@ class CLITesting(unittest.TestCase):
         self.assertEqual(actual.port, 2812)
         self.assertEqual(actual.user, 'user')
         self.assertEqual(actual.password, 'password')
+
+    def test_service_output(self):
+        input_element = ET.Element('foobar')
+        actual = get_service_output(-1, input_element)
+        self.assertEqual(actual, 'Service (type=-1) not implemented')
+
+        input_element = ET.ElementTree(ET.fromstring("""<doc><status>unittest</status></doc>"""))
+        actual = get_service_output(3, input_element)
+        self.assertEqual(actual, 'unittest')
+
+        input_element = ET.ElementTree(ET.fromstring("""<doc><program><output>foobar</output></program></doc>"""))
+        actual = get_service_output(7, input_element)
+        self.assertEqual(actual, 'foobar')
 
 class UtilTesting(unittest.TestCase):
 
@@ -54,7 +69,7 @@ class MainTesting(unittest.TestCase):
 
         self.assertEqual(actual, 3)
 
-        calls = [mock.call('[UNKNOWN]: Monit Socket error=Boom!')]
+        calls = [mock.call('[UNKNOWN]: Could not connect to Monit. error=Boom!')]
 
         mock_print.assert_has_calls(calls)
 
@@ -69,7 +84,7 @@ class MainTesting(unittest.TestCase):
 
         self.assertEqual(actual, 3)
 
-        calls = [mock.call('[UNKNOWN]: Monit HTTP status=400')]
+        calls = [mock.call('[UNKNOWN]: No valid response from Monit HTTP Server. error=400')]
 
         mock_print.assert_has_calls(calls)
 
@@ -84,7 +99,7 @@ class MainTesting(unittest.TestCase):
 
         self.assertEqual(actual, 3)
 
-        calls = [mock.call('[UNKNOWN]: Monit XML error=syntax error: line 1, column 0')]
+        calls = [mock.call('[UNKNOWN]: Unable to parse XML response from Monit HTTP Server. error=syntax error: line 1, column 0')]
 
         mock_print.assert_has_calls(calls)
 
