@@ -75,7 +75,7 @@ def print_output(status, count_ok, count_all, items):
             print('  ' + item['output'])
 
 
-def service_output(service_type, element):
+def get_service_output(service_type, element):
     # Service Type Filesystem
     if service_type == 0:
         block = float(element.findall('block/percent')[0].text)
@@ -113,6 +113,29 @@ def service_output(service_type, element):
 
     return 'Service (type={0}) not implemented'.format(service_type)
 
+def get_service_states(services):
+    items = []
+    count_all = 0
+    count_ok = 0
+
+    for service in services:
+        # Get the monitor state for the service (0: Not, 1: Yes, 2: Init, 4: Waiting)
+        monitor = int(service.find('monitor').text)
+        # if the monitor is yes or initialize, check its status
+        if monitor in (1, 2):
+            status = int(service.find('status').text)
+            if status == 0:
+                count_ok += 1
+
+            count_all += 1
+
+            items.append({
+                "name": service.find('name').text,
+                "status": status,
+                "output": get_service_output(int(service.get('type')), service)
+            })
+
+    return items, count_all, count_ok
 
 def main(args):
     url = '{0}:{1}/_status?format=xml'.format(args.host, args.port)
@@ -135,40 +158,19 @@ def main(args):
         print('[UNKNOWN]: Unable to parse XML response from Monit HTTP Server. error={0}'.format(str(e)))
         return 3
 
-    items = []
     services = tree.findall('service')
+    items, count_all, count_ok = get_service_states(services)
 
-    count_all = 0
-    count_ok = 0
-
-    for service in services:
-        # Get the monitor state for the service (0: Not, 1: Yes, 2: Init, 4: Waiting)
-        monitor = int(service.find('monitor').text)
-        # if the monitor is yes or initialize, check its status
-        if monitor in (1, 2):
-            status = int(service.find('status').text)
-            if status == 0:
-                count_ok += 1
-
-            count_all += 1
-
-            items.append({
-                "name": service.find('name').text,
-                "status": status,
-                "output": service_output(int(service.get('type')), service)
-            })
-
-    status = 0
-
+    exit_status = 0
     if count_ok < count_all:
-        status = 2
+        exit_status = 2
 
     if count_ok == 0:
-        status = 2
+        exit_status = 2
 
-    print_output(status, count_ok, count_all, items)
+    print_output(exit_status, count_ok, count_all, items)
 
-    return status
+    return exit_status
 
 
 if __package__ == '__main__' or __package__ is None: # pragma: no cover

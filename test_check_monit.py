@@ -11,7 +11,7 @@ sys.path.append('..')
 from check_monit import main
 from check_monit import commandline
 from check_monit import print_output
-from check_monit import service_output
+from check_monit import get_service_output
 
 
 class MockRequest():
@@ -33,15 +33,15 @@ class CLITesting(unittest.TestCase):
 
     def test_service_output(self):
         input_element = ET.Element('foobar')
-        actual = service_output(-1, input_element)
+        actual = get_service_output(-1, input_element)
         self.assertEqual(actual, 'Service (type=-1) not implemented')
 
         input_element = ET.ElementTree(ET.fromstring("""<doc><status>unittest</status></doc>"""))
-        actual = service_output(3, input_element)
+        actual = get_service_output(3, input_element)
         self.assertEqual(actual, 'unittest')
 
         input_element = ET.ElementTree(ET.fromstring("""<doc><program><output>foobar</output></program></doc>"""))
-        actual = service_output(7, input_element)
+        actual = get_service_output(7, input_element)
         self.assertEqual(actual, 'foobar')
 
 class UtilTesting(unittest.TestCase):
