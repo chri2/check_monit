@@ -120,19 +120,19 @@ def main(args):
     try:
         r = requests.get(url, auth=(args.user, args.password), timeout=5)
     except Exception as e: # pylint: disable=broad-except
-        print('[UNKNOWN]: Monit Socket error={0}'.format(str(e)))
+        print('[UNKNOWN]: Could not connect to Monit. error={0}'.format(str(e)))
         return 3
 
     status_code = r.status_code
 
     if status_code != 200:
-        print('[UNKNOWN]: Monit HTTP status={0}'.format(status_code))
+        print('[UNKNOWN]: No valid response from Monit HTTP Server. error={0}'.format(status_code))
         return 3
 
     try:
         tree = ElementTree.fromstring(r.content)
     except Exception as e: # pylint: disable=broad-except
-        print('[UNKNOWN]: Monit XML error={0}'.format(str(e)))
+        print('[UNKNOWN]: Unable to parse XML response from Monit HTTP Server. error={0}'.format(str(e)))
         return 3
 
     items = []

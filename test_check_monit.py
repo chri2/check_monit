@@ -69,7 +69,7 @@ class MainTesting(unittest.TestCase):
 
         self.assertEqual(actual, 3)
 
-        calls = [mock.call('[UNKNOWN]: Monit Socket error=Boom!')]
+        calls = [mock.call('[UNKNOWN]: Could not connect to Monit. error=Boom!')]
 
         mock_print.assert_has_calls(calls)
 
@@ -84,7 +84,7 @@ class MainTesting(unittest.TestCase):
 
         self.assertEqual(actual, 3)
 
-        calls = [mock.call('[UNKNOWN]: Monit HTTP status=400')]
+        calls = [mock.call('[UNKNOWN]: No valid response from Monit HTTP Server. error=400')]
 
         mock_print.assert_has_calls(calls)
 
@@ -99,7 +99,7 @@ class MainTesting(unittest.TestCase):
 
         self.assertEqual(actual, 3)
 
-        calls = [mock.call('[UNKNOWN]: Monit XML error=syntax error: line 1, column 0')]
+        calls = [mock.call('[UNKNOWN]: Unable to parse XML response from Monit HTTP Server. error=syntax error: line 1, column 0')]
 
         mock_print.assert_has_calls(calls)
 
