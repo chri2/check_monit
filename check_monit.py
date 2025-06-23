@@ -1,26 +1,34 @@
 #!/usr/bin/env python3
 
-# MIT License
-#
-# Copyright (c) 2021 NETWAYS GmbH
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+# monit.h Reference
+# typedef enum {
+#         Monitor_Not     = 0x0,
+#         Monitor_Yes     = 0x1,
+#         Monitor_Init    = 0x2,
+#         Monitor_Waiting = 0x4
+# } Monitor_State;
+
+# typedef enum {
+#         State_Succeeded  = 0x0,
+#         State_Failed     = 0x1,
+#         State_Changed    = 0x2,
+#         State_ChangedNot = 0x4,
+#         State_Init       = 0x8,
+#         State_None       = State_Init // Alias
+# } State_Type;
+
+# typedef enum {
+#         Service_Filesystem = 0,
+#         Service_Directory,
+#         Service_File,
+#         Service_Process,
+#         Service_Host,
+#         Service_System,
+#         Service_Fifo,
+#         Service_Program,
+#         Service_Net,
+#         Service_Last = Service_Net
+# } Service_Type;
 
 import sys
 import argparse
@@ -37,7 +45,6 @@ icinga_status = {
     2: 'CRITICAL',
     3: 'UNKNOWN'
 }
-
 
 def commandline(args):
 
@@ -57,7 +64,6 @@ def commandline(args):
 
 
 def print_output(status, count_ok, count_all, items):
-
     s = icinga_status[status]
 
     print(f"[{s}]: Monit Service Status {count_ok}/{count_all}")
@@ -70,15 +76,18 @@ def print_output(status, count_ok, count_all, items):
 
 
 def service_output(service_type, element):
+    # Service Type Filesystem
     if service_type == 0:
         block = float(element.findall('block/percent')[0].text)
         inode = float(element.findall('inode/percent')[0].text)
         return 'user={0}%;inodes={1}%'.format(block, inode)
 
+    # Service Type Process
     if service_type == 3:
-        # service type: PROCESS
         status = element.find('status').text
         return status
+
+    # Service Type Host
     if service_type == 5:
         output = []
 
@@ -98,8 +107,8 @@ def service_output(service_type, element):
 
         return ';'.join(output)
 
+    # Service Type Program
     if service_type == 7:
-        # status = float(element.findall('program/status')[0].text)
         return element.findall('program/output')[0].text
 
     return 'Service (type={0}) not implemented'.format(service_type)
@@ -133,7 +142,9 @@ def main(args):
     count_ok = 0
 
     for service in services:
+        # Get the monitor state for the service (0: Not, 1: Yes, 2: Init, 4: Waiting)
         monitor = int(service.find('monitor').text)
+        # if the monitor is yes or initialize, check its status
         if monitor in (1, 2):
             status = int(service.find('status').text)
             if status == 0:
