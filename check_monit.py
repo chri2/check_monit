@@ -121,8 +121,9 @@ def get_service_states(services):
     for service in services:
         # Get the monitor state for the service (0: Not, 1: Yes, 2: Init, 4: Waiting)
         monitor = int(service.find('monitor').text)
-        # if the monitor is yes or initialize, check its status
-        if monitor in (1, 2):
+        # if the monitor is 'yes', 'initialize' or 'waiting', check its status
+        # https://github.com/NETWAYS/check_monit/issues/12
+        if monitor in (1, 2, 4, 5):
             status = int(service.find('status').text)
             if status == 0:
                 count_ok += 1
