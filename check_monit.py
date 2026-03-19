@@ -72,6 +72,8 @@ def print_output(status, count_ok, count_all, items):
         for item in items:
             s = "OK" if item['status'] == 0 else "CRITICAL"
             print(' \\_ [{0}]: {1}'.format(s, item['name']))
+            if item['output'] is None:
+                item['output'] = "None"
             print('  ' + item['output'])
 
 
